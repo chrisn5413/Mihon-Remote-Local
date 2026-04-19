@@ -1,0 +1,13 @@
+# Copy this file to local.properties and fill in your credentials.
+# local.properties is gitignored — never commit real credentials.
+
+# Android SDK location (update to your actual SDK path)
+sdk.dir=C\:\\Users\\YourName\\AppData\\Local\\Android\\Sdk
+
+# Google Cloud OAuth 2.0 Web Application credentials.
+# 1. Go to https://console.cloud.google.com
+# 2. Create project → Enable Google Drive API
+# 3. Credentials → Create OAuth 2.0 Client ID → Web application
+# 4. Copy the Client ID and Client Secret below.
+driveClientId=YOUR_WEB_CLIENT_ID.apps.googleusercontent.com
+driveClientSecret=YOUR_CLIENT_SECRET
