@@ -16,3 +16,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "mihon-remote-local"
 include(":app")
+include(":stubs")

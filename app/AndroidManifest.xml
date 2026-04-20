@@ -11,30 +11,35 @@
 
         <meta-data
             android:name="tachiyomi.extension.class"
-            android:value=".CloudExtensionFactory" />
+            android:value=".RemoteLibraryFactory" />
 
         <meta-data
             android:name="tachiyomi.extension.nsfw"
             android:value="0" />
 
+        <!--
+            Full class names required: namespace="eu.kanade.tachiyomi.extension" differs from
+            applicationId="eu.kanade.tachiyomi.extension.remotelibrary", so AGP would expand ".ui.Foo"
+            to the wrong package. Explicit names are always safe.
+        -->
         <activity
-            android:name=".ui.ScanProgressActivity"
+            android:name="eu.kanade.tachiyomi.extension.remotelibrary.ui.ScanProgressActivity"
             android:exported="false"
             android:theme="@android:style/Theme.Material.Light.NoActionBar" />
 
         <activity
-            android:name=".ui.AddLibraryActivity"
-            android:exported="false"
+            android:name="eu.kanade.tachiyomi.extension.remotelibrary.ui.AddLibraryActivity"
+            android:exported="true"
             android:theme="@android:style/Theme.Material.Light.NoActionBar" />
 
         <activity
-            android:name=".ui.LibrarySettingsActivity"
-            android:exported="false"
+            android:name="eu.kanade.tachiyomi.extension.remotelibrary.ui.LibrarySettingsActivity"
+            android:exported="true"
             android:theme="@android:style/Theme.Material.Light.NoActionBar" />
 
         <activity
-            android:name=".ui.GlobalSettingsActivity"
-            android:exported="false"
+            android:name="eu.kanade.tachiyomi.extension.remotelibrary.ui.GlobalSettingsActivity"
+            android:exported="true"
             android:theme="@android:style/Theme.Material.Light.NoActionBar" />
 
     </application>

@@ -9,7 +9,7 @@ android {
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "eu.kanade.tachiyomi.extension.cloud"
+        applicationId = "eu.kanade.tachiyomi.extension.remotelibrary"
         minSdk = 23
         targetSdk = 34
         versionCode = 1
@@ -44,10 +44,12 @@ android {
 }
 
 dependencies {
-    // Provided by Mihon at runtime — stubs are in src/main/kotlin for the tachiyomi/injekt APIs.
-    // RxJava and OkHttp are on Maven Central so kept as real compileOnly deps.
+    // Tachiyomi/injekt stubs — compile-only, not bundled in APK
+    compileOnly(project(":stubs"))
+    // Provided by Mihon at runtime — RxJava, OkHttp, and preference are on Maven Central.
     compileOnly("io.reactivex:rxjava:1.3.8")
     compileOnly("com.squareup.okhttp3:okhttp:5.0.0-alpha.14")
+    compileOnly("androidx.preference:preference-ktx:1.2.0")
 
     // Bundled into the extension APK
     implementation("androidx.appcompat:appcompat:1.7.0")
