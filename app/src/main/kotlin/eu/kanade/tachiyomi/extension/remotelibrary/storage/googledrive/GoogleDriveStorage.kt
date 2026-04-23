@@ -11,11 +11,8 @@ class GoogleDriveStorage(
 ) : MangaStorage {
 
     override suspend fun listFolder(folderId: String): List<StorageItem> {
-        val all = client.listAllUnderFolder(folderId)
-        // Filter to direct children of folderId only
-        return all
-            .filter { file -> file.parents.contains(folderId) }
-            .map { it.toStorageItem() }
+        // Use the direct-children API — no filtering needed, no wasted recursive fetch.
+        return client.listDirectChildren(folderId).map { it.toStorageItem() }
     }
 
     override suspend fun downloadFile(fileId: String): InputStream {

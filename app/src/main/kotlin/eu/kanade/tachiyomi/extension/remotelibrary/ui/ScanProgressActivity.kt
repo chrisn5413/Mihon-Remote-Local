@@ -22,7 +22,6 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
-import okhttp3.OkHttpClient
 
 class ScanProgressActivity : AppCompatActivity() {
 
@@ -68,11 +67,10 @@ class ScanProgressActivity : AppCompatActivity() {
             try {
                 val ctx = applicationContext
                 val authManager = DriveAuthManager(ctx)
-                val okHttpClient = OkHttpClient()
-                val driveClient = GoogleDriveClient(authManager, okHttpClient)
+                val driveClient = GoogleDriveClient(authManager)
                 val storage = GoogleDriveStorage(driveClient, config.rootFolderId)
                 val generator = IndexGenerator(driveClient, storage)
-                val indexManager = IndexManager(config, ctx.filesDir)
+                val indexManager = IndexManager(config, ctx)
 
                 val index = generator.generate(config) { current, total, name ->
                     withContext(Dispatchers.Main) {

@@ -34,7 +34,7 @@ class LibrarySettingsActivity : AppCompatActivity() {
         setContentView(R.layout.activity_library_settings)
 
         val ctx = applicationContext
-        registry = LibraryRegistry(ctx.getSharedPreferences("remote_library", MODE_PRIVATE))
+        registry = LibraryRegistry(ctx)
 
         val libraryId = intent.getStringExtra(EXTRA_LIBRARY_ID)
             ?: run { finish(); return }
@@ -56,7 +56,7 @@ class LibrarySettingsActivity : AppCompatActivity() {
 
         // Last scan time
         val tvLastScan = findViewById<TextView>(R.id.tv_last_scan)
-        val indexManager = IndexManager(config, ctx.filesDir)
+        val indexManager = IndexManager(config, ctx)
         tvLastScan.text = indexManager.getLastGeneratedAt() ?: "Never"
 
         // Cover load mode spinner
@@ -101,7 +101,7 @@ class LibrarySettingsActivity : AppCompatActivity() {
                     CoverCache(config.id, ctx.filesDir).clearAll()
                     val scanIntent = Intent(this, ScanProgressActivity::class.java).apply {
                         putExtra(ScanProgressActivity.EXTRA_LIBRARY_JSON, json.encodeToString(config))
-                        flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS
                     }
                     startActivity(scanIntent)
                 }

@@ -13,18 +13,18 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.io.File
-import java.util.zip.ZipInputStream
+import java.util.zip.ZipFile
 
 private const val TAG = "ReadingCache"
 private val imageExtensions = setOf("jpg", "jpeg", "png", "webp", "gif")
 
 class ReadingCache(
-    cacheDir: File,
+    baseDir: File,
     private val storage: MangaStorage,
     private val maxSizeMb: Int = 500,
 ) {
-    private val readingRoot = File(cacheDir, "mihon-remote/reading").also { it.mkdirs() }
-    private val accessLogFile = File(cacheDir, "mihon-remote/reading_access.json")
+    private val readingRoot = File(baseDir, "mihon-remote/reading").also { it.mkdirs() }
+    private val accessLogFile = File(baseDir, "mihon-remote/reading_access.json")
     private val json = Json { ignoreUnknownKeys = true }
 
     // In-memory cache of folder-chapter page lists (avoids repeated listFolder calls)
@@ -50,7 +50,10 @@ class ReadingCache(
             return@withContext sortedImageFiles(dir)
         }
 
-        dir.mkdirs()
+        if (!dir.exists() && !dir.mkdirs()) {
+            error("Failed to create chapter cache directory: ${dir.absolutePath}")
+        }
+        Log.d(TAG, "Chapter dir ready: ${dir.absolutePath} exists=${dir.exists()}")
 
         try {
             if (chapter.isArchive) {
@@ -77,8 +80,14 @@ class ReadingCache(
         val cacheKey = "${series.id}::${chapter.id}"
 
         val pages = folderPageCache.getOrPut(cacheKey) {
-            storage.listFolder(folderId).filter { it.mimeType?.startsWith("image/") == true ||
-                it.name.substringAfterLast('.').lowercase() in imageExtensions }
+            val all = storage.listFolder(folderId)
+            Log.d(TAG, "listFolder($folderId): ${all.size} items total")
+            all.filter { item ->
+                val isImg = item.mimeType?.startsWith("image/") == true ||
+                    item.name.substringAfterLast('.').lowercase() in imageExtensions
+                if (!isImg) Log.d(TAG, "  skipping non-image: '${item.name}' mime=${item.mimeType}")
+                isImg
+            }.also { Log.d(TAG, "  → ${it.size} image files to download") }
         }
 
         val total = pages.size.toLong()
@@ -90,9 +99,20 @@ class ReadingCache(
                     async(Dispatchers.IO) {
                         val destFile = File(dir, page.name)
                         if (!destFile.exists()) {
-                            storage.downloadFile(page.id).use { stream ->
-                                destFile.outputStream().use { out -> stream.copyTo(out) }
+                            // Safety net: ensure the directory still exists at write time.
+                            // mkdirs() is a no-op if the dir already exists.
+                            destFile.parentFile?.mkdirs()
+                            try {
+                                storage.downloadFile(page.id).use { stream ->
+                                    destFile.outputStream().use { out -> stream.copyTo(out) }
+                                }
+                                Log.d(TAG, "Downloaded page '${page.name}' → ${destFile.length()} bytes")
+                            } catch (e: Exception) {
+                                Log.e(TAG, "Failed to download page '${page.name}' (id=${page.id}): ${e.message}")
+                                throw e
                             }
+                        } else {
+                            Log.d(TAG, "Page '${page.name}' already cached (${destFile.length()} bytes)")
                         }
                         synchronized(this@ReadingCache) {
                             downloaded++
@@ -111,33 +131,48 @@ class ReadingCache(
     ) {
         val archiveId = chapter.archiveFileId ?: error("Archive chapter missing archiveFileId")
         val tempCbz = File(dir.parent, "${chapter.id}.cbz.tmp")
+        tempCbz.parentFile?.mkdirs()
 
         try {
+            var downloadedBytes = 0L
             storage.downloadFile(archiveId).use { inputStream ->
-                var totalBytes = 0L
                 tempCbz.outputStream().use { out ->
-                    val buffer = ByteArray(8192)
+                    val buffer = ByteArray(65_536)
                     var read: Int
                     while (inputStream.read(buffer).also { read = it } != -1) {
                         out.write(buffer, 0, read)
-                        totalBytes += read
-                        onProgress?.invoke(totalBytes, -1L)
+                        downloadedBytes += read
+                        onProgress?.invoke(downloadedBytes, -1L)
                     }
                 }
             }
+            Log.d(TAG, "CBZ downloaded: $downloadedBytes bytes → ${tempCbz.absolutePath}")
+            if (downloadedBytes == 0L) error("CBZ download produced 0 bytes for archiveId=${chapter.archiveFileId}")
 
-            ZipInputStream(tempCbz.inputStream()).use { zip ->
-                var entry = zip.nextEntry
-                while (entry != null) {
+            // Use ZipFile (reads the central directory at EOF) rather than ZipInputStream
+            // (reads local headers sequentially). ZipInputStream can stop early if it
+            // cannot skip an unread entry's data; ZipFile enumerates all entries robustly.
+            var imageCount = 0
+            var skippedCount = 0
+            ZipFile(tempCbz).use { zip ->
+                val entries = zip.entries()
+                while (entries.hasMoreElements()) {
+                    val entry = entries.nextElement()
                     val ext = entry.name.substringAfterLast('.').lowercase()
+                    Log.d(TAG, "ZIP entry: '${entry.name}' isDir=${entry.isDirectory} ext=$ext")
                     if (!entry.isDirectory && ext in imageExtensions) {
                         val destFile = File(dir, entry.name.substringAfterLast('/'))
-                        destFile.outputStream().use { out -> zip.copyTo(out) }
+                        destFile.parentFile?.mkdirs()
+                        zip.getInputStream(entry).use { input ->
+                            destFile.outputStream().use { out -> input.copyTo(out) }
+                        }
+                        imageCount++
+                    } else {
+                        skippedCount++
                     }
-                    zip.closeEntry()
-                    entry = zip.nextEntry
                 }
             }
+            Log.d(TAG, "CBZ extraction complete: $imageCount images, $skippedCount skipped → ${dir.absolutePath}")
         } finally {
             tempCbz.delete()
         }

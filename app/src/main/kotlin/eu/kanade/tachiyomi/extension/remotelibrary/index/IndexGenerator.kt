@@ -86,16 +86,19 @@ class IndexGenerator(
         val seriesId = generateSeriesId(seriesFolder.name, usedIds)
         val usedChapterIds = mutableSetOf<String>()
 
-        // Find cover
+        // Find cover — for folder chapters we make one extra API call to list images inside
+        // the first chapter folder. listAllUnderFolder only goes 2 levels deep (root→series→
+        // chapters), so image files within chapter folders are not in the in-memory map.
         val firstChapter = allChapterItems.first()
-        val (coverFileId, coverIsArchive) = findCoverForChapter(firstChapter, childrenByParent)
+        val (coverFileId, coverIsArchive) = findCoverForChapter(firstChapter)
 
         // Optionally parse ComicInfo from first CBZ chapter
         val comicInfo = tryParseComicInfo(firstChapter)
 
-        // Build chapters
+        // Build chapters — page count is null for folder chapters because we don't fetch
+        // image lists for all chapters during the scan (only for the cover of the first one).
         val chapters = allChapterItems.mapNotNull { item ->
-            buildChapter(item, seriesId, childrenByParent, usedChapterIds)
+            buildChapter(item, seriesId, usedChapterIds)
         }
 
         return IndexSeries(
@@ -114,19 +117,24 @@ class IndexGenerator(
         )
     }
 
-    private fun findCoverForChapter(
-        chapter: DriveFile,
-        childrenByParent: Map<String, List<DriveFile>>,
-    ): Pair<String?, Boolean> {
-        return if (chapter.isFolder) {
-            val firstImage = childrenByParent[chapter.id]
-                ?.filter { it.isImage }
-                ?.minByOrNull { it.name }
-            firstImage?.id to false
-        } else if (chapter.isCbz) {
-            chapter.id to true
-        } else {
-            null to false
+    private suspend fun findCoverForChapter(chapter: DriveFile): Pair<String?, Boolean> {
+        return when {
+            chapter.isCbz -> chapter.id to true
+            chapter.isFolder -> {
+                // listAllUnderFolder only fetches 2 levels (root→series→chapters), so images
+                // inside chapter folders are not in the in-memory map. Fetch them on demand
+                // for the first chapter only (cover). This is one extra API call per series
+                // that uses folder-based chapters.
+                val firstImage = try {
+                    driveClient.listDirectChildren(chapter.id)
+                        .filter { it.isImage }
+                        .minByOrNull { it.name }
+                } catch (_: Exception) {
+                    null
+                }
+                firstImage?.id to false
+            }
+            else -> null to false
         }
     }
 
@@ -147,7 +155,6 @@ class IndexGenerator(
     private fun buildChapter(
         item: DriveFile,
         seriesId: String,
-        childrenByParent: Map<String, List<DriveFile>>,
         usedIds: MutableSet<String>,
     ): IndexChapter? {
         val number = ChapterNumberParser.parse(item.name)
@@ -159,19 +166,17 @@ class IndexGenerator(
         }
         usedIds.add(chapterId)
 
-        return if (item.isFolder) {
-            val pageCount = childrenByParent[item.id]?.count { it.isImage }
-            IndexChapter(
+        return when {
+            item.isFolder -> IndexChapter(
                 id = chapterId,
                 number = number,
                 title = item.name,
                 folderId = item.id,
                 archiveFileId = null,
                 isArchive = false,
-                pageCount = pageCount,
+                pageCount = null, // Not fetched during scan; resolved lazily when chapter is opened
             )
-        } else if (item.isCbz) {
-            IndexChapter(
+            item.isCbz -> IndexChapter(
                 id = chapterId,
                 number = number,
                 title = item.name,
@@ -180,8 +185,7 @@ class IndexGenerator(
                 isArchive = true,
                 pageCount = null,
             )
-        } else {
-            null
+            else -> null
         }
     }
 }

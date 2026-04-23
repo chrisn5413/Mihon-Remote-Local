@@ -1,8 +1,19 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.serialization")
 }
+
+// Load local.properties (not picked up by findProperty automatically — that only reads
+// gradle.properties and -P CLI flags). Fall back to gradle.properties for CI usage.
+val localProps = Properties().also { props ->
+    val f = rootProject.file("local.properties")
+    if (f.exists()) props.load(f.inputStream())
+}
+fun localOrGradle(key: String) =
+    localProps.getProperty(key) ?: findProperty(key)?.toString() ?: ""
 
 android {
     namespace = "eu.kanade.tachiyomi.extension"
@@ -15,10 +26,8 @@ android {
         versionCode = 1
         versionName = "1.4.1"
 
-        val clientId = findProperty("driveClientId")?.toString() ?: ""
-        val clientSecret = findProperty("driveClientSecret")?.toString() ?: ""
-        buildConfigField("String", "DRIVE_CLIENT_ID", "\"$clientId\"")
-        buildConfigField("String", "DRIVE_CLIENT_SECRET", "\"$clientSecret\"")
+        buildConfigField("String", "DRIVE_CLIENT_ID", "\"${localOrGradle("driveClientId")}\"")
+        buildConfigField("String", "DRIVE_CLIENT_SECRET", "\"${localOrGradle("driveClientSecret")}\"")
     }
 
     buildFeatures {
@@ -46,10 +55,20 @@ android {
 dependencies {
     // Tachiyomi/injekt stubs — compile-only, not bundled in APK
     compileOnly(project(":stubs"))
-    // Provided by Mihon at runtime — RxJava, OkHttp, and preference are on Maven Central.
+    // Provided by Mihon at runtime in the source classloader — compile-only there.
     compileOnly("io.reactivex:rxjava:1.3.8")
-    compileOnly("com.squareup.okhttp3:okhttp:5.0.0-alpha.14")
     compileOnly("androidx.preference:preference-ktx:1.2.0")
+
+    // OkHttp is compile-only: the extension extends HttpSource, whose abstract method
+    // signatures reference okhttp3.Request / okhttp3.Response / okhttp3.OkHttpClient.
+    // We must compile against those types, but we must NOT bundle OkHttp in the DEX.
+    // Mihon uses ChildFirstPathClassLoader; bundling a second copy would cause two distinct
+    // okhttp3.Request class objects, and the JVM verifier would reject RemoteLibrarySource
+    // with a LinkageError at class-load time.
+    // At runtime in Mihon's process, okhttp3.* resolves from Mihon's classloader —
+    // identical to what HttpSource was compiled against — so no conflict occurs.
+    // All actual HTTP work in this extension uses java.net.HttpURLConnection instead.
+    compileOnly("com.squareup.okhttp3:okhttp:4.12.0")
 
     // Bundled into the extension APK
     implementation("androidx.appcompat:appcompat:1.7.0")
@@ -57,5 +76,4 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
     implementation("com.google.android.gms:play-services-auth:21.0.0")
-    implementation("androidx.security:security-crypto:1.1.0-alpha06")
 }

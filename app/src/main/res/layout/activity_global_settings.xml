@@ -2,52 +2,88 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:padding="24dp">
+    android:orientation="vertical">
 
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="24dp"
-        android:text="Google Account"
-        android:textAppearance="?android:attr/textAppearanceLarge"
-        android:textStyle="bold" />
-
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="8dp"
-        android:text="Account status" />
-
-    <TextView
-        android:id="@+id/tv_account_status"
+    <!-- Close / back button row -->
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="24dp"
-        android:text="Not connected"
-        android:textAppearance="?android:attr/textAppearanceMedium" />
+        android:background="?attr/colorPrimary"
+        android:gravity="center_vertical"
+        android:minHeight="56dp"
+        android:orientation="horizontal"
+        android:paddingStart="4dp"
+        android:paddingEnd="16dp">
 
-    <Button
-        android:id="@+id/btn_connect"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="8dp"
-        android:text="Connect Google Account" />
+        <Button
+            android:id="@+id/btn_close"
+            style="?android:attr/borderlessButtonStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="✕"
+            android:textColor="@android:color/white"
+            android:textSize="18sp" />
 
-    <Button
-        android:id="@+id/btn_disconnect"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:backgroundTint="#B00020"
-        android:text="Disconnect"
-        android:textColor="@android:color/white"
-        android:visibility="gone" />
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Google Account"
+            android:textAppearance="?android:attr/textAppearanceLarge"
+            android:textColor="@android:color/white"
+            android:textStyle="bold" />
 
-    <TextView
+    </LinearLayout>
+
+    <ScrollView
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="24dp"
-        android:text="One Google account is shared across all library instances. Disconnecting does not delete your local indexes or covers."
-        android:textAppearance="?android:attr/textAppearanceSmall" />
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="24dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp"
+                android:text="Account status" />
+
+            <TextView
+                android:id="@+id/tv_account_status"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="24dp"
+                android:text="Not connected"
+                android:textAppearance="?android:attr/textAppearanceMedium" />
+
+            <Button
+                android:id="@+id/btn_connect"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp"
+                android:text="Connect Google Account" />
+
+            <Button
+                android:id="@+id/btn_disconnect"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:backgroundTint="#B00020"
+                android:text="Disconnect"
+                android:textColor="@android:color/white"
+                android:visibility="gone" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="24dp"
+                android:text="One Google account is shared across all library instances. Disconnecting does not delete your local indexes or covers."
+                android:textAppearance="?android:attr/textAppearanceSmall" />
+
+        </LinearLayout>
+    </ScrollView>
 
 </LinearLayout>

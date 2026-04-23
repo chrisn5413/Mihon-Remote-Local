@@ -35,6 +35,8 @@ class GlobalSettingsActivity : AppCompatActivity() {
         btnConnect = findViewById(R.id.btn_connect)
         btnDisconnect = findViewById(R.id.btn_disconnect)
 
+        findViewById<android.widget.Button>(R.id.btn_close).setOnClickListener { finish() }
+
         btnConnect.setOnClickListener {
             try {
                 authManager.startAuthFlow(this)

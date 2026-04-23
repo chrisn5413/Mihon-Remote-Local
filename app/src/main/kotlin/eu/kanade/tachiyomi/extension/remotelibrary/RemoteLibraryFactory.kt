@@ -10,9 +10,7 @@ class RemoteLibraryFactory : SourceFactory {
 
     override fun createSources(): List<Source> {
         val context: Context = currentApplication().applicationContext
-        val registry = LibraryRegistry(
-            context.getSharedPreferences("remote_library", Context.MODE_PRIVATE),
-        )
+        val registry = LibraryRegistry(context)
         val librarySources = registry.getAll().map { config -> RemoteLibrarySource(config, context) }
         // Always expose at least one source so users can reach AddLibraryActivity
         return librarySources.ifEmpty { listOf(RemoteLibrarySetupSource(context)) }

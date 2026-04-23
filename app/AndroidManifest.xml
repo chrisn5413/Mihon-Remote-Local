@@ -18,29 +18,62 @@
             android:value="0" />
 
         <!--
+            LibraryConfigProvider solves the cross-process SharedPreferences problem.
+            RemoteLibraryFactory / Source classes run in Mihon's process (app.mihon).
+            Activities run in the extension's own process. SharedPreferences files live in
+            per-package data directories, so they're invisible across processes.
+            This ContentProvider runs in the extension's process and is called by both
+            processes via ContentResolver — android:exported="true" is required for that.
+        -->
+        <provider
+            android:name="eu.kanade.tachiyomi.extension.remotelibrary.library.LibraryConfigProvider"
+            android:authorities="eu.kanade.tachiyomi.extension.remotelibrary.config"
+            android:exported="true" />
+
+        <!--
             Full class names required: namespace="eu.kanade.tachiyomi.extension" differs from
             applicationId="eu.kanade.tachiyomi.extension.remotelibrary", so AGP would expand ".ui.Foo"
             to the wrong package. Explicit names are always safe.
+
+            Theme.AppCompat.Light.NoActionBar is required — all activities extend AppCompatActivity,
+            which throws IllegalStateException if given a non-AppCompat theme (@android:style/...).
+        -->
+        <!--
+            excludeFromRecents: prevents the extension's activity task from appearing in
+            the Android recents / task-switcher. Without this, FLAG_ACTIVITY_NEW_TASK
+            (required when starting an Activity from a non-Activity context) creates a
+            visible task entry, making the extension look like a second open app.
+
+            taskAffinity="": gives activities an anonymous task affinity so they are
+            never grouped with Mihon's task or any other task in the recents list.
         -->
         <activity
             android:name="eu.kanade.tachiyomi.extension.remotelibrary.ui.ScanProgressActivity"
-            android:exported="false"
-            android:theme="@android:style/Theme.Material.Light.NoActionBar" />
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:taskAffinity=""
+            android:theme="@style/Theme.AppCompat.Light.NoActionBar" />
 
         <activity
             android:name="eu.kanade.tachiyomi.extension.remotelibrary.ui.AddLibraryActivity"
             android:exported="true"
-            android:theme="@android:style/Theme.Material.Light.NoActionBar" />
+            android:excludeFromRecents="true"
+            android:taskAffinity=""
+            android:theme="@style/Theme.AppCompat.Light.NoActionBar" />
 
         <activity
             android:name="eu.kanade.tachiyomi.extension.remotelibrary.ui.LibrarySettingsActivity"
             android:exported="true"
-            android:theme="@android:style/Theme.Material.Light.NoActionBar" />
+            android:excludeFromRecents="true"
+            android:taskAffinity=""
+            android:theme="@style/Theme.AppCompat.Light.NoActionBar" />
 
         <activity
             android:name="eu.kanade.tachiyomi.extension.remotelibrary.ui.GlobalSettingsActivity"
             android:exported="true"
-            android:theme="@android:style/Theme.Material.Light.NoActionBar" />
+            android:excludeFromRecents="true"
+            android:taskAffinity=""
+            android:theme="@style/Theme.AppCompat.Light.NoActionBar" />
 
     </application>
 </manifest>

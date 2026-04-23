@@ -1,5 +1,6 @@
 package eu.kanade.tachiyomi.extension.remotelibrary.ui
 
+import android.content.Intent
 import android.os.Bundle
 import android.view.View
 import android.widget.Button
@@ -19,8 +20,8 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import okhttp3.OkHttpClient
-import java.net.URLDecoder
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import java.util.UUID
 import java.util.regex.Pattern
 
@@ -76,7 +77,7 @@ class AddLibraryActivity : AppCompatActivity() {
             try {
                 val ctx = applicationContext
                 val authManager = DriveAuthManager(ctx)
-                val driveClient = GoogleDriveClient(authManager, OkHttpClient())
+                val driveClient = GoogleDriveClient(authManager)
                 val storage = GoogleDriveStorage(driveClient, folderId)
                 val result = storage.testConnection()
 
@@ -116,9 +117,22 @@ class AddLibraryActivity : AppCompatActivity() {
             displayName = displayName,
             rootFolderId = folderId,
         )
-        val ctx = applicationContext
-        val registry = LibraryRegistry(ctx.getSharedPreferences("remote_library", MODE_PRIVATE))
-        registry.add(config)
+        // LibraryRegistry uses the ContentProvider — works from both the extension
+        // process (here) and Mihon's process (RemoteLibraryFactory).
+        LibraryRegistry(applicationContext).add(config)
+
+        // Start the scan immediately so the index is ready before the user restarts Mihon.
+        val scanIntent = Intent(this, ScanProgressActivity::class.java).apply {
+            putExtra(ScanProgressActivity.EXTRA_LIBRARY_JSON, Json.encodeToString(config))
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS)
+        }
+        startActivity(scanIntent)
+
+        android.widget.Toast.makeText(
+            this,
+            "\"$displayName\" added. Restart Mihon after the scan finishes to browse it.",
+            android.widget.Toast.LENGTH_LONG,
+        ).show()
 
         setResult(RESULT_OK)
         finish()
