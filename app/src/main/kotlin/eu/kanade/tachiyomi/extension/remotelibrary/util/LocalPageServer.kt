@@ -31,7 +31,10 @@ class LocalPageServer(private val baseDir: File) {
 
     fun start() {
         if (serverSocket?.isClosed == false) return
-        val ss = ServerSocket(0) // port 0 → OS picks an available ephemeral port
+        // Use a fixed port so thumbnail_url values stored in Mihon's database remain valid
+        // across app restarts. Port 45678 is in the ephemeral range and unlikely to conflict;
+        // if it's already bound (e.g. two extension processes), fall back to OS-assigned port.
+        val ss = try { ServerSocket(45678) } catch (_: Exception) { ServerSocket(0) }
         serverSocket = ss
         Thread {
             Log.d(TAG, "Listening on port ${ss.localPort} serving from ${baseDir.absolutePath}")

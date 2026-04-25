@@ -90,7 +90,7 @@ class IndexGenerator(
         // the first chapter folder. listAllUnderFolder only goes 2 levels deep (root→series→
         // chapters), so image files within chapter folders are not in the in-memory map.
         val firstChapter = allChapterItems.first()
-        val (coverFileId, coverIsArchive) = findCoverForChapter(firstChapter)
+        val (coverFileId, coverIsArchive, coverFileSizeBytes) = findCoverForChapter(firstChapter)
 
         // Optionally parse ComicInfo from first CBZ chapter
         val comicInfo = tryParseComicInfo(firstChapter)
@@ -107,6 +107,7 @@ class IndexGenerator(
             folderId = seriesFolder.id,
             coverFileId = coverFileId,
             coverIsArchive = coverIsArchive,
+            coverFileSizeBytes = coverFileSizeBytes,
             description = comicInfo?.summary,
             author = comicInfo?.writer,
             artist = comicInfo?.penciller,
@@ -117,9 +118,10 @@ class IndexGenerator(
         )
     }
 
-    private suspend fun findCoverForChapter(chapter: DriveFile): Pair<String?, Boolean> {
+    /** Returns Triple(coverFileId, coverIsArchive, coverFileSizeBytes). */
+    private suspend fun findCoverForChapter(chapter: DriveFile): Triple<String?, Boolean, Long?> {
         return when {
-            chapter.isCbz -> chapter.id to true
+            chapter.isCbz -> Triple(chapter.id, true, chapter.sizeLong)
             chapter.isFolder -> {
                 // listAllUnderFolder only fetches 2 levels (root→series→chapters), so images
                 // inside chapter folders are not in the in-memory map. Fetch them on demand
@@ -132,9 +134,9 @@ class IndexGenerator(
                 } catch (_: Exception) {
                     null
                 }
-                firstImage?.id to false
+                Triple(firstImage?.id, false, null)
             }
-            else -> null to false
+            else -> Triple(null, false, null)
         }
     }
 

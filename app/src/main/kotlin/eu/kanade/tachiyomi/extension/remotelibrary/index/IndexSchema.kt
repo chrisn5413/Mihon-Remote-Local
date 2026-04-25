@@ -20,6 +20,9 @@ data class IndexSeries(
     @SerialName("folder_id") val folderId: String,
     @SerialName("cover_file_id") val coverFileId: String? = null,
     @SerialName("cover_is_archive") val coverIsArchive: Boolean = false,
+    /** Byte size of the CBZ file referenced by [coverFileId]. Only set when [coverIsArchive] is true.
+     *  Used by CoverCache to download the central directory from the correct end-of-file offset. */
+    @SerialName("cover_file_size") val coverFileSizeBytes: Long? = null,
     val description: String? = null,
     val author: String? = null,
     val artist: String? = null,

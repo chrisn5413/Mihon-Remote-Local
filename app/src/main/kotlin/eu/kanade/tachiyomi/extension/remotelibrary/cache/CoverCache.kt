@@ -5,7 +5,7 @@ import android.graphics.BitmapFactory
 import android.util.Log
 import eu.kanade.tachiyomi.extension.remotelibrary.index.IndexSeries
 import eu.kanade.tachiyomi.extension.remotelibrary.storage.MangaStorage
-import eu.kanade.tachiyomi.extension.remotelibrary.util.ZipPartialReader
+import eu.kanade.tachiyomi.extension.remotelibrary.util.ZipCentralDirectory
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -14,9 +14,6 @@ private const val TAG = "CoverCache"
 
 private const val COVER_MAX_WIDTH = 300
 private const val COVER_MAX_HEIGHT = 450
-// Manga page images are typically 1–3 MB each. 4 MB gives us a good chance of containing
-// the first complete image entry in a CBZ archive's sequential ZIP stream.
-private const val COVER_PARTIAL_SIZE = 4_194_304L
 
 class CoverCache(
     libraryId: String,
@@ -50,12 +47,21 @@ class CoverCache(
         Log.d(TAG, "getCover[${series.id}]: fetching coverFileId=$coverFileId coverIsArchive=${series.coverIsArchive}")
         try {
             val imageStream = if (series.coverIsArchive) {
-                Log.d(TAG, "getCover[${series.id}]: downloading partial CBZ (${COVER_PARTIAL_SIZE} bytes)")
-                val bytes = stor.downloadFilePartial(coverFileId, 0, COVER_PARTIAL_SIZE)
-                Log.d(TAG, "getCover[${series.id}]: partial download got ${bytes.size} bytes, extracting first image")
-                val stream = ZipPartialReader.findFirstImage(bytes)
+                // Resolve file size: prefer value stored in index (populated since last rescan);
+                // fall back to a metadata API call for older indexes that lack it.
+                val fileSize = series.coverFileSizeBytes
+                    ?: run {
+                        Log.d(TAG, "getCover[${series.id}]: no coverFileSizeBytes in index, fetching metadata")
+                        stor.getFileMetadata(coverFileId).sizeBytes
+                    }
+                if (fileSize == null || fileSize <= 0L) {
+                    Log.w(TAG, "getCover[${series.id}]: cannot determine CBZ file size, skipping")
+                    return@withContext null
+                }
+                Log.d(TAG, "getCover[${series.id}]: extracting first image from CBZ via central directory (fileSize=$fileSize)")
+                val stream = ZipCentralDirectory.extractFirstImage(coverFileId, fileSize, stor)
                 if (stream == null) {
-                    Log.w(TAG, "getCover[${series.id}]: findFirstImage returned null — no image found in first ${bytes.size} bytes of CBZ")
+                    Log.w(TAG, "getCover[${series.id}]: ZipCentralDirectory.extractFirstImage returned null")
                     return@withContext null
                 }
                 stream

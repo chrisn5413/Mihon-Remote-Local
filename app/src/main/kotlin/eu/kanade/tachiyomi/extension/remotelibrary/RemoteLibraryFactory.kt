@@ -12,8 +12,10 @@ class RemoteLibraryFactory : SourceFactory {
         val context: Context = currentApplication().applicationContext
         val registry = LibraryRegistry(context)
         val librarySources = registry.getAll().map { config -> RemoteLibrarySource(config, context) }
-        // Always expose at least one source so users can reach AddLibraryActivity
-        return librarySources.ifEmpty { listOf(RemoteLibrarySetupSource(context)) }
+        // SetupSource is always included so the gear-icon settings screen (ConfigurableSource)
+        // remains accessible regardless of how many libraries are configured. It appears first
+        // so it anchors the settings entry point even as library sources come and go.
+        return listOf(RemoteLibrarySetupSource(context)) + librarySources
     }
 
     private fun currentApplication(): Application =

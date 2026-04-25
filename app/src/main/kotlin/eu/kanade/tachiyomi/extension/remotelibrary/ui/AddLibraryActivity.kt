@@ -22,7 +22,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import java.util.UUID
 import java.util.regex.Pattern
 
 class AddLibraryActivity : AppCompatActivity() {
@@ -112,14 +111,30 @@ class AddLibraryActivity : AppCompatActivity() {
         val displayName = etDisplayName.text.toString().trim()
         if (displayName.isEmpty()) return
 
+        val registry = LibraryRegistry(applicationContext)
+
+        // Use the Drive folder ID as the stable library ID.
+        // This makes the Mihon source ID deterministic: same folder URL → same source ID
+        // across reinstalls → all read progress and library entries in Mihon's database
+        // are preserved even after uninstalling and reinstalling the extension.
+        val existingConfig = registry.get(folderId)
+        if (existingConfig != null) {
+            android.widget.Toast.makeText(
+                this,
+                "This folder is already added as \"${existingConfig.displayName}\".",
+                android.widget.Toast.LENGTH_LONG,
+            ).show()
+            setResult(RESULT_OK)
+            finish()
+            return
+        }
+
         val config = LibraryConfig(
-            id = UUID.randomUUID().toString(),
+            id = folderId,          // stable: survives reinstall as long as folder URL is the same
             displayName = displayName,
             rootFolderId = folderId,
         )
-        // LibraryRegistry uses the ContentProvider — works from both the extension
-        // process (here) and Mihon's process (RemoteLibraryFactory).
-        LibraryRegistry(applicationContext).add(config)
+        registry.add(config)
 
         // Start the scan immediately so the index is ready before the user restarts Mihon.
         val scanIntent = Intent(this, ScanProgressActivity::class.java).apply {
